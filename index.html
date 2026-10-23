@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>猪mer</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2' y='2' width='20' height='20' rx='5' fill='%2307c160'/%3E%3Ccircle cx='8' cy='12' r='2.2' fill='%23fff'/%3E%3Ccircle cx='16' cy='12' r='2.2' fill='%23fff'/%3E%3C/svg%3E">
+  <script src="https://fastly.jsdelivr.net/npm/@tencentcloud/chat@3.6.7/index.min.js"></script>
+  <script src="https://fastly.jsdelivr.net/npm/tim-upload-plugin@1.4.3/index.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', sans-serif;
+      background: #ededed; color: #1f1f1f; overflow: hidden;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .view { display: none; height: 100%; width: 100%; }
+    .view.active { display: flex; flex-direction: column; }
+
+    /* ========== 登录页 ========== */
+    #view-login { align-items: center; justify-content: center; background: #f5f5f5; }
+    .login-card { width: 84%; max-width: 360px; background: #fff; border-radius: 14px; padding: 30px 26px; box-shadow: 0 6px 24px rgba(0,0,0,.08); }
+    .login-logo {
+      width: 64px; height: 64px; border-radius: 18px; margin: 0 auto 14px;
+      background: linear-gradient(135deg, #07c160, #06ad56); color: #fff; font-size: 32px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .login-title { text-align: center; font-size: 22px; font-weight: 600; margin-bottom: 6px; }
+    .login-sub { text-align: center; font-size: 13px; color: #999; margin-bottom: 22px; }
+    .field { margin-bottom: 14px; }
+    .field label { display: block; font-size: 13px; color: #666; margin-bottom: 6px; }
+    .field input {
+      width: 100%; height: 42px; border: 1px solid #ddd; border-radius: 8px; padding: 0 12px;
+      font-size: 16px; outline: none; background: #fafafa; transition: border-color .2s;
+    }
+    .field input:focus { border-color: #07c160; background: #fff; }
+    .btn-login {
+      width: 100%; height: 44px; border: none; border-radius: 8px; margin-top: 8px;
+      background: #07c160; color: #fff; font-size: 16px; font-weight: 600; cursor: pointer;
+    }
+    .btn-login:active { opacity: .85; }
+    .login-tip { text-align: center; font-size: 12px; color: #aaa; margin-top: 14px; }
+
+    /* ========== 聊天页顶栏 ========== */
+    .header {
+      flex: none; height: 48px; display: flex; align-items: center; padding: 0 8px;
+      background: #f7f7f7; border-bottom: 1px solid #d9d9d9; position: relative; z-index: 5;
+    }
+    .header .me-box { min-width: 96px; display: flex; align-items: center; gap: 6px; }
+    .my-avatar {
+      width: 28px; height: 28px; border-radius: 50%; overflow: hidden; flex: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; background: #e7e7e7; color: #888; font-size: 13px; font-weight: 600;
+    }
+    .my-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .my-nick { font-size: 13px; color: #576b95; cursor: pointer; max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .header .title {
+      flex: 1; text-align: center; font-size: 17px; font-weight: 600;
+      display: flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; overflow: hidden;
+    }
+    #peerNick { overflow: hidden; text-overflow: ellipsis; max-width: 200px; color: #1f1f1f; }
+    .header .act { min-width: 96px; text-align: right; }
+    .link-btn { background: none; border: none; color: #576b95; font-size: 13px; cursor: pointer; padding: 4px 6px; }
+
+    /* ========== 消息区 ========== */
+    #msg-area {
+      flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+      padding: 12px 10px 16px; background: #ededed;
+    }
+    .day-tip { text-align: center; font-size: 12px; color: #999; margin: 18px 0; }
+    .msg { display: flex; margin-bottom: 14px; align-items: flex-start; }
+    .msg.me { flex-direction: row; justify-content: flex-end; }
+    .msg.peer { flex-direction: row; }
+    .avatar {
+      width: 38px; height: 38px; border-radius: 6px; flex: none;
+      display: flex; align-items: center; justify-content: center; color: #fff; font-size: 17px; font-weight: 600; overflow: hidden;
+    }
+    .msg.me .avatar { order: 2; margin-left: 8px; background: #07c160; }
+    .msg.peer .avatar { order: 1; margin-right: 8px; background: #9aa0a6; }
+    .avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 6px; }
+    .bubble {
+      max-width: 68%; padding: 8px 12px; border-radius: 6px; font-size: 15px; line-height: 1.45;
+      word-break: break-word; position: relative;
+    }
+    .msg.me .bubble { order: 1; background: #95ec69; }
+    .msg.peer .bubble { order: 2; background: #fff; }
+    .bubble.em { font-size: 30px; line-height: 1; padding: 4px 8px; }
+    .bubble .meta { font-size: 11px; color: #aaa; margin-top: 4px; }
+    .bubble img.photo { display: block; max-width: 100%; max-height: 240px; border-radius: 6px; }
+    .bubble .img-fallback { font-size: 13px; color: #999; }
+    .bubble .vwrap { position: relative; max-width: 100%; cursor: zoom-in; }
+    .bubble .vwrap video { display: block; max-width: 100%; max-height: 220px; border-radius: 6px; background: #000; }
+    .bubble .vplay {
+      position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+      width: 0; height: 0; border-top: 15px solid transparent; border-bottom: 15px solid transparent;
+      border-left: 26px solid rgba(255,255,255,.92); filter: drop-shadow(0 1px 3px rgba(0,0,0,.4)); pointer-events: none;
+    }
+
+    /* ========== 底部栏 ========== */
+    .inputbar { flex: none; background: #f7f7f7; border-top: 1px solid #ddd; padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); }
+    .input-row { display: flex; align-items: flex-end; gap: 6px; }
+    .tool-btn {
+      flex: none; width: 34px; height: 34px; border: none; background: none; font-size: 20px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; border-radius: 6px;
+    }
+    .tool-btn:active { background: #e6e6e6; }
+    #msgInput {
+      flex: 1; min-height: 38px; max-height: 110px; border: 1px solid #d9d9d9; border-radius: 6px;
+      background: #fff; font-size: 16px; padding: 8px 10px; resize: none; outline: none;
+    }
+    .btn-send {
+      flex: none; height: 36px; padding: 0 16px; border: none; border-radius: 6px;
+      background: #07c160; color: #fff; font-size: 15px; cursor: pointer;
+    }
+    .btn-send:active { opacity: .85; }
+
+    /* 表情面板 */
+    .panel { position: absolute; left: 0; right: 0; bottom: 0; background: #f7f7f7; border-top: 1px solid #e0e0e0; z-index: 10; display: none; }
+    .panel.show { display: block; }
+    .emoji-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; max-height: 210px; overflow-y: auto; padding: 6px 4px; }
+    .emoji { font-size: 24px; text-align: center; padding: 4px 0; cursor: pointer; border-radius: 4px; line-height: 1.2; }
+    .emoji:active { background: #e6e6e6; }
+    .panel-close { width: 100%; height: 34px; border-top: 1px solid #e0e0e0; color: #576b95; font-size: 13px; background: none; cursor: pointer; }
+
+    /* 改名弹窗 */
+    .mask { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 30; display: none; align-items: center; justify-content: center; }
+    .mask.show { display: flex; }
+    .dialog { width: 78%; max-width: 320px; background: #fff; border-radius: 12px; padding: 22px 20px; }
+    .dialog h3 { font-size: 16px; text-align: center; margin-bottom: 16px; }
+    .dialog input {
+      width: 100%; height: 40px; border: 1px solid #ddd; border-radius: 8px; padding: 0 10px; font-size: 15px; outline: none;
+    }
+    .dialog input:focus { border-color: #07c160; }
+    .dlg-btns { display: flex; gap: 10px; margin-top: 18px; }
+    .dlg-btns button { flex: 1; height: 40px; border: none; border-radius: 8px; font-size: 15px; cursor: pointer; }
+    .btn-cancel { background: #f2f2f2; color: #666; }
+    .btn-ok { background: #07c160; color: #fff; }
+
+    /* 全屏查看器 */
+    .viewer { position: fixed; inset: 0; background: rgba(0,0,0,.92); z-index: 40; display: none; align-items: center; justify-content: center; }
+    .viewer.show { display: flex; }
+    .viewer img { max-width: 94%; max-height: 88%; border-radius: 4px; }
+    .viewer video { max-width: 94%; max-height: 88%; border-radius: 4px; background: #000; }
+    .vclose {
+      position: absolute; top: 14px; right: 14px; width: 40px; height: 40px; border-radius: 50%;
+      background: rgba(255,255,255,.18); color: #fff; font-size: 20px; border: none; cursor: pointer; z-index: 5;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .vclose:active { background: rgba(255,255,255,.32); }
+
+    /* toast */
+    #toast {
+      position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%);
+      background: rgba(0,0,0,.72); color: #fff; font-size: 14px; padding: 8px 16px; border-radius: 6px;
+      z-index: 60; opacity: 0; pointer-events: none; transition: opacity .25s; white-space: nowrap;
+    }
+    #toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+
+  <!-- ===== 登录页 ===== -->
+  <div id="view-login" class="view active">
+    <div class="login-card">
+      <div class="login-logo">猪</div>
+      <div class="login-title">猪mer</div>
+      <div class="login-sub">双人聊天室 · 请输入账号密码</div>
+      <div class="field"><label>账号</label><input id="loginAcc" type="text" autocomplete="off" placeholder="666 或 888"></div>
+      <div class="field"><label>密码</label><input id="loginPwd" type="password" placeholder="666 或 888"></div>
+      <button id="btnLogin" class="btn-login">登录</button>
+      <div class="login-tip">账号666、密码666 / 账号888、密码888</div>
+    </div>
+  </div>
+
+  <!-- ===== 聊天页 ===== -->
+  <div id="view-chat" class="view">
+    <div class="header">
+      <div class="me-box" id="meBox">
+        <span id="meAvatar" class="my-avatar" title="点击换头像"></span>
+        <span id="meNick" class="my-nick" title="点击改昵称"></span>
+      </div>
+      <div class="title" id="peerTitle"><span id="peerNick">对方</span></div>
+      <div class="act"><button id="btnLogout" class="link-btn">退出</button></div>
+    </div>
+
+    <div id="msg-area">
+      <div class="day-tip" id="chatTip">开始聊天吧</div>
+    </div>
+
+    <div class="inputbar">
+      <div class="input-row">
+        <button id="btnEmoji" class="tool-btn" title="表情">😀</button>
+        <button id="btnPhoto" class="tool-btn" title="图片">🖼</button>
+        <button id="btnVideo" class="tool-btn" title="视频">📹</button>
+        <textarea id="msgInput" placeholder="输入消息" rows="1"></textarea>
+        <button id="btnSend" class="btn-send">发送</button>
+      </div>
+    </div>
+
+    <input type="file" accept="image/*" id="inAlbum" hidden>
+    <input type="file" accept="video/*" id="inGallery" hidden>
+    <input type="file" accept="image/*" id="inAvatar" hidden>
+
+    <div class="panel" id="emojiPanel">
+      <div class="emoji-grid" id="emojiGrid"></div>
+      <button class="panel-close" id="emojiClose">收起表情</button>
+    </div>
+
+    <div class="mask" id="renameMask">
+      <div class="dialog">
+        <h3>修改昵称</h3>
+        <input id="renameInput" type="text" maxlength="12" placeholder="输入新昵称">
+        <div class="dlg-btns"><button id="renameCancel" class="btn-cancel">取消</button><button id="renameOk" class="btn-ok">确定</button></div>
+      </div>
+    </div>
+
+    <div id="viewer" class="viewer">
+      <button id="vClose" class="vclose" aria-label="关闭">✕</button>
+      <img id="vImg" alt="">
+      <video id="vVid" controls playsinline></video>
+    </div>
+
+    <div id="toast"></div>
+  </div>
+
+  <script>
+    /* ========== 腾讯云 IM 配置 ========== */
+    var IM_CONFIG = {
+      SDKAppID: 1600166965,
+      userSigs: {
+        '666': 'eJwtzMsKwjAQheF3yVrKJDbTC7ioghZ1Y42WLsWkMogmxqIF8d2tbZfnO-B-mNrug5fxLGUiADbpN2lzb6imnhFx5Ke*npwjzVKOABwxQTk8pnXkTedSSgEAgzZ0*1uUCIwFl*FYoUtXrQUUoFZh0x6zncryucdosX4U-nyI66jMp8u2fG*s5ZWdse8PQXovag__',
+        '888': 'eJwtzEELgjAYxvHvsnPI62hrEzpUKGihh4LOtk15C8ewIbLou2fq8fk98P*Q2*UaDaYnCaERkM28URvrscGZhRArv-Wrdg41SWIOEHMuOVseMzrszeSMMQoAi3rs-raTlAtKYbtWsJ2qBzuU9NSlZdYK1Tchqwr-fNQ1yGN6HkXI70UVrFI2V3vy-QFkbTB7'
+      }
+    };
+
+    var EMOJIS = ['😀','😁','😂','🤣','😃','😄','😅','😆','😉','😊','😋','😎','😍','😘','🥰','😗','😙','😚','☺️','🙂','🤗','🤩','🤔','🤨','😐','😑','😶','🙄','😏','😣','😥','😮','🤐','😯','😪','😫','😴','😌','😛','😜','😝','🤤','😒','😓','😔','😕','🙃','🤑','😲','☹️','🙁','😖','😞','😟','😤','😢','😭','😦','😧','😨','😩','🤯','😬','😰','😱','🥵','🥶','😳','🤪','😵','😡','😠','🤬','😷','🤒','🤕','🤢','🤮','🤧','😇','🥳','🥺','🤠','🤡','🤥','🤫','🤭','🧐','🤓','😈','👿','👹','👺','💀','👻','👽','🤖','💩','😺','😸','😹','😻','😼','😽','🙀','😿','😾','🙈','🙉','🙊','👋','🤚','✋','🖖','👌','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','👇','☝️','✊','👊','👏','🙌','👐','🤲','🤝','🙏','✍️','💪','👀','👅','👄','❤️','🧡','💛','💚','💙','💜','🖤','💔','💕','💞','💓','💗','💖','💘','💝','💋','💯','💢','💥','💫','💦','💨','✨','🌟','⭐','🔥','🌹','🌺','🌻','🌼','🌸','💐','🌙','☀️','⛄','❄️','🌈','⚡','☕','🍺','🍻','🥂','🍰','🎂','🍎','🍓','🍑','🍊','🍉','🍜','🍔','🍕','🍟','🍪','🍫','🍬','🍭','🎉','🎊','🎁','🏆','⚽','🏀','🎮','🎵','🎶','🎤','🎧'];
+
+    (function () {
+      'use strict';
+      var $ = function (id) { return document.getElementById(id); };
+
+      var chat = null;
+      var myID = '', peerID = '', myNick = '';
+      var historyLoaded = false;
+      var sending = false;
+      var myAvatar = '', peerAvatar = '';
+      var unreadCount = 0, favTimer = null;
+
+      /* ---------- 工具 ---------- */
+      function toast(msg) {
+        var t = $('toast'); t.textContent = msg; t.classList.add('show');
+        clearTimeout(t._tm); t._tm = setTimeout(function () { t.classList.remove('show'); }, 2200);
+      }
+      function fmtTime(sec) {
+        var d = new Date(sec * 1000);
+        function p(n) { return (n < 10 ? '0' : '') + n; }
+        return p(d.getHours()) + ':' + p(d.getMinutes());
+      }
+      function toHttps(u) { return u ? u.replace(/^http:\/\//i, 'https://') : u; }
+
+      /* ---------- 腾讯云 IM V3 字段 ---------- */
+      function getImageUrl(msg) {
+        try {
+          var arr = (msg.payload && msg.payload.imageInfoArray) || [];
+          var u = '';
+          for (var i = 0; i < arr.length; i++) { if (arr[i].imageUrl) { u = arr[i].imageUrl; break; } }
+          if (!u) u = msg.payload && (msg.payload.url || msg.payload.imageUrl);
+          return toHttps(u);
+        } catch (e) { return ''; }
+      }
+      function getVideoUrl(msg) {
+        var p = msg.payload || {};
+        return toHttps(p.remoteVideoUrl || p.videoUrl || p.url || '');
+      }
+      function getVideoPoster(msg) {
+        var p = msg.payload || {};
+        return toHttps(p.remoteSnapshotUrl || p.snapshotUrl || p.thumbUrl || '');
+      }
+
+      /* ---------- 视图切换 ---------- */
+      function setView(name) {
+        var map = { login: 'view-login', chat: 'view-chat' };
+        [].forEach.call(document.querySelectorAll('.view'), function (v) { v.classList.remove('active'); });
+        $(map[name]).classList.add('active');
+      }
+
+      /* ---------- 标签页新消息提醒 ---------- */
+      var favGreen = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2' y='2' width='20' height='20' rx='5' fill='%2307c160'/%3E%3Ccircle cx='8' cy='12' r='2.2' fill='%23fff'/%3E%3Ccircle cx='16' cy='12' r='2.2' fill='%23fff'/%3E%3C/svg%3E";
+      var favRed = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2' y='2' width='20' height='20' rx='5' fill='%23e64340'/%3E%3Ccircle cx='8' cy='12' r='2.2' fill='%23fff'/%3E%3Ccircle cx='16' cy='12' r='2.2' fill='%23fff'/%3E%3C/svg%3E";
+      var favDim = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2' y='2' width='20' height='20' rx='5' fill='%23c8c8c8'/%3E%3Ccircle cx='8' cy='12' r='2.2' fill='%23fff'/%3E%3Ccircle cx='16' cy='12' r='2.2' fill='%23fff'/%3E%3C/svg%3E";
+      function setFav(u) { var l = document.querySelector('link[rel="icon"]'); if (l) l.href = u; }
+      function setTitleText() { document.title = unreadCount > 0 ? unreadCount + ' 条新消息' : '猪mer'; }
+      function updateNotif() {
+        setTitleText();
+        if (unreadCount > 0) {
+          if (!favTimer) {
+            var on = true; setFav(favRed);
+            favTimer = setInterval(function () { on = !on; setFav(on ? favRed : favDim); }, 500);
+          }
+        } else {
+          if (favTimer) { clearInterval(favTimer); favTimer = null; }
+          setFav(favGreen);
+        }
+      }
+
+      /* ---------- 头像 ---------- */
+      function avatarNode(dataURL, ch) {
+        var d = document.createElement('div'); d.className = 'avatar';
+        if (dataURL) { var i = document.createElement('img'); i.src = dataURL; d.appendChild(i); }
+        else d.textContent = (ch || '?').slice(0, 1);
+        return d;
+      }
+      function renderMyAvatar() {
+        var me = $('meAvatar');
+        if (me) {
+          me.innerHTML = '';
+          if (myAvatar) { var im = document.createElement('img'); im.src = myAvatar; me.appendChild(im); }
+          else me.textContent = (myNick || myID).slice(0, 1);
+        }
+        [].forEach.call(document.querySelectorAll('#msg-area .msg.me .avatar'), function (a) {
+          a.innerHTML = '';
+          if (myAvatar) { var i = document.createElement('img'); i.src = myAvatar; a.appendChild(i); }
+          else a.textContent = (myNick || myID).slice(0, 1);
+        });
+      }
+      function updatePeerAvatar() {
+        [].forEach.call(document.querySelectorAll('#msg-area .msg.peer .avatar'), function (a) {
+          a.innerHTML = '';
+          if (peerAvatar) { var i = document.createElement('img'); i.src = peerAvatar; a.appendChild(i); }
+          else a.textContent = getPeerNick().slice(0, 1);
+        });
+      }
+      function downscaleImage(img, size) {
+        var c = document.createElement('canvas'); c.width = size; c.height = size;
+        var ctx = c.getContext('2d');
+        var s = Math.min(img.width, img.height), sx = (img.width - s) / 2, sy = (img.height - s) / 2;
+        ctx.drawImage(img, sx, sy, s, s, 0, 0, size, size);
+        return c.toDataURL('image/jpeg', 0.75);
+      }
+      function changeAvatar(input) {
+        var f = input.files && input.files[0]; if (!f) return;
+        var fr = new FileReader();
+        fr.onload = function () {
+          var im = new Image();
+          im.onload = function () {
+            myAvatar = downscaleImage(im, 64);
+            localStorage.setItem('mychat_avatar_' + myID, myAvatar);
+            renderMyAvatar();
+            if (myAvatar.length < 5000) sendCustom('AVATAR:' + myAvatar);
+          };
+          im.src = fr.result;
+        };
+        fr.readAsDataURL(f);
+        input.value = '';
+      }
+
+      /* ---------- 自定义消息解析（昵称 / 头像） ---------- */
+      function applyCustom(msg) {
+        var d = msg.payload && msg.payload.data;
+        if (typeof d !== 'string') return false;
+        if (d.indexOf('NICK:') === 0) {
+          var n = d.slice(5);
+          if (n) { localStorage.setItem('mychat_peerNick_' + peerID, n); updateHeader(); }
+          return true;
+        }
+        if (d.indexOf('AVATAR:') === 0) {
+          var a = d.slice(7);
+          if (a && a.length < 8000) { localStorage.setItem('mychat_peerAvatar_' + peerID, a); peerAvatar = a; updatePeerAvatar(); }
+          return true;
+        }
+        return false;
+      }
+
+      /* ---------- 顶栏 ---------- */
+      function getPeerNick() { return localStorage.getItem('mychat_peerNick_' + peerID) || '对方'; }
+      function updateHeader() { $('peerNick').textContent = getPeerNick(); }
+
+      /* ---------- 昵称 ---------- */
+      function setMyNick(n) {
+        myNick = (n || '').trim() || myID;
+        localStorage.setItem('mychat_nick_' + myID, myNick);
+        if ($('meNick')) $('meNick').textContent = myNick;
+        renderMyAvatar();
+        sendCustom('NICK:' + myNick);
+      }
+      function sendCustom(data) {
+        if (!chat || !data) return;
+        var msg = chat.createCustomMessage({ to: peerID, conversationType: TencentCloudChat.TYPES.CONV_C2C, payload: { data: data } });
+        chat.sendMessage(msg).catch(function () {});
+      }
+
+      /* ---------- 登录 ---------- */
+      function doLogin() {
+        var acc = $('loginAcc').value.trim();
+        var pwd = $('loginPwd').value.trim();
+        if (!(acc === '666' || acc === '888')) { toast('账号必须是 666 或 888'); return; }
+        if (pwd !== acc) { toast('密码错误'); return; }
+        myID = acc; peerID = (acc === '666') ? '888' : '666';
+        myNick = localStorage.getItem('mychat_nick_' + myID) || myID;
+        myAvatar = localStorage.getItem('mychat_avatar_' + myID) || '';
+        peerAvatar = localStorage.getItem('mychat_peerAvatar_' + peerID) || '';
+        if ($('meNick')) $('meNick').textContent = myNick;
+        renderMyAvatar();
+        localStorage.setItem('mychat_session', myID);
+        initSDK();
+      }
+
+      function tryAutoLogin() {
+        var acc = localStorage.getItem('mychat_session');
+        if (!(acc === '666' || acc === '888')) return;
+        myID = acc; peerID = (acc === '666') ? '888' : '666';
+        myNick = localStorage.getItem('mychat_nick_' + myID) || myID;
+        myAvatar = localStorage.getItem('mychat_avatar_' + myID) || '';
+        peerAvatar = localStorage.getItem('mychat_peerAvatar_' + peerID) || '';
+        if ($('meNick')) $('meNick').textContent = myNick;
+        renderMyAvatar();
+        initSDK();
+      }
+
+      function doLogout() {
+        localStorage.removeItem('mychat_session');
+        setView('login');
+        if (chat) { try { chat.logout(); } catch (e) {} }
+      }
+
+      function initSDK() {
+        if (!window.TencentCloudChat) { toast('IM SDK 加载失败，请检查网络'); return; }
+        chat = TencentCloudChat.create({ SDKAppID: IM_CONFIG.SDKAppID });
+        chat.setLogLevel(3);
+        if (window.TIMUploadPlugin) chat.registerPlugin({ 'tim-upload-plugin': TIMUploadPlugin });
+
+        chat.on(TencentCloudChat.EVENT.SDK_READY, function () {
+          historyLoaded = false;
+          setMyNick(localStorage.getItem('mychat_nick_' + myID) || myID);
+          updateHeader();
+          loadHistory();
+        });
+        chat.on(TencentCloudChat.EVENT.MESSAGE_RECEIVED, function (event) {
+          (event.data || []).forEach(handleMessage);
+        });
+        chat.on(TencentCloudChat.EVENT.KICKED_OUT, function () {
+          localStorage.removeItem('mychat_session');
+          toast('你被另一台设备登录，已下线');
+          setView('login');
+        });
+        chat.on(TencentCloudChat.EVENT.SDK_NOT_READY, function () {});
+        chat.on(TencentCloudChat.EVENT.NET_STATE_CHANGE, function () {});
+
+        chat.login({ userID: myID, userSig: IM_CONFIG.userSigs[myID] }).then(function () {
+          setView('chat');
+          $('chatTip').textContent = '开始聊天吧';
+          $('msg-area').innerHTML = '<div class="day-tip" id="chatTip">连接中…</div>';
+        }).catch(function (err) {
+          var m = (err && (err.message || err.msg)) || '登录失败';
+          toast('登录失败：' + m);
+        });
+      }
+
+      /* ---------- 消息处理 ---------- */
+      function handleMessage(msg) {
+        if (!msg || msg.conversationType !== TencentCloudChat.TYPES.CONV_C2C) return;
+        if (msg.type === TencentCloudChat.TYPES.MSG_CUSTOM) { applyCustom(msg); return; }
+        if (msg.from !== myID && document.hidden) { unreadCount++; updateNotif(); }
+        renderMessage(msg);
+      }
+
+      function renderMessage(msg) {
+        var area = $('msg-area');
+        var fromMe = msg.from === myID;
+        var wrap = document.createElement('div');
+        wrap.className = 'msg ' + (fromMe ? 'me' : 'peer');
+        var av = avatarNode(fromMe ? myAvatar : peerAvatar, fromMe ? myNick : getPeerNick());
+
+        var bub = document.createElement('div');
+        bub.className = 'bubble';
+
+        if (msg.type === TencentCloudChat.TYPES.MSG_TEXT) {
+          bub.textContent = msg.payload.text;
+        } else if (msg.type === TencentCloudChat.TYPES.MSG_IMAGE) {
+          var img = document.createElement('img');
+          img.className = 'photo';
+          var iu = getImageUrl(msg);
+          if (iu) img.src = iu;
+          img.style.cursor = 'zoom-in';
+          img.onload = function () { scrollBottom(true); };
+          img.onclick = function () { if (iu) openViewer('image', iu); };
+          img.onerror = function () {
+            img.style.display = 'none';
+            if (!bub.querySelector('.img-fallback')) {
+              var t = document.createElement('div'); t.className = 'img-fallback';
+              t.textContent = '[图片加载失败]'; bub.appendChild(t);
+            }
+          };
+          bub.appendChild(img);
+        } else if (msg.type === TencentCloudChat.TYPES.MSG_VIDEO) {
+          var vw = document.createElement('div'); vw.className = 'vwrap';
+          var v = document.createElement('video');
+          v.className = 'vid'; v.playsInline = true; v.preload = 'metadata';
+          var vu = getVideoUrl(msg);
+          if (vu) v.src = vu;
+          v.onloadeddata = function () { scrollBottom(true); };
+          var post = getVideoPoster(msg); if (post) v.poster = post;
+          var play = document.createElement('span'); play.className = 'vplay';
+          vw.appendChild(v); vw.appendChild(play);
+          vw.onclick = function () { if (vu) openViewer('video', vu, post); };
+          bub.appendChild(vw);
+        } else if (msg.type === TencentCloudChat.TYPES.MSG_FACE) {
+          bub.textContent = msg.payload.data || '😊';
+          bub.className += ' em';
+        } else {
+          return;
+        }
+
+        if (msg.time) { var meta = document.createElement('div'); meta.className = 'meta'; meta.textContent = fmtTime(msg.time); bub.appendChild(meta); }
+        wrap.appendChild(av); wrap.appendChild(bub);
+        area.appendChild(wrap);
+        scrollBottom(true);
+      }
+
+      function loadHistory() {
+        if (!chat || !peerID) return;
+        chat.getMessageList({ conversationID: 'C2C' + peerID, count: 50 }).then(function (res) {
+          var area = $('msg-area');
+          area.innerHTML = '';
+          var list = res.data.messageList || [];
+          if (!list.length) { area.innerHTML = '<div class="day-tip">开始聊天吧</div>'; }
+          list.forEach(function (msg) {
+            if (msg.type === TencentCloudChat.TYPES.MSG_CUSTOM) { applyCustom(msg); return; }
+            renderMessage(msg);
+          });
+          historyLoaded = true;
+          scrollBottom(true);
+        }).catch(function () {
+          area.innerHTML = '<div class="day-tip">消息加载失败</div>';
+        });
+      }
+
+      function scrollBottom(force) {
+        var a = $('msg-area');
+        var nearBottom = (a.scrollHeight - a.scrollTop - a.clientHeight) < 90;
+        if (force || nearBottom) a.scrollTop = a.scrollHeight;
+      }
+
+      /* ---------- 发送 ---------- */
+      function sendText() {
+        var inp = $('msgInput'); var text = inp.value.trim();
+        if (!text || sending) return;
+        sending = true;
+        var msg = chat.createTextMessage({ to: peerID, conversationType: TencentCloudChat.TYPES.CONV_C2C, payload: { text: text } });
+        chat.sendMessage(msg).then(function () { inp.value = ''; renderMessage(msg); closePanels(); })
+          .catch(function () { toast('发送失败'); })
+          .finally(function () { sending = false; });
+      }
+      function sendFile(kind, input) {
+        var file = input.files && input.files[0];
+        if (!file) return;
+        var msg;
+        if (kind === 'image') msg = chat.createImageMessage({ to: peerID, conversationType: TencentCloudChat.TYPES.CONV_C2C, payload: { file: input } });
+        else msg = chat.createVideoMessage({ to: peerID, conversationType: TencentCloudChat.TYPES.CONV_C2C, payload: { file: input } });
+        toast('上传中…');
+        chat.sendMessage(msg).then(function () { renderMessage(msg); closePanels(); toast('已发送'); })
+          .catch(function () { toast('发送失败'); })
+          .finally(function () { input.value = ''; });
+      }
+      function sendEmoji(e) {
+        if (!chat || !e) return;
+        var msg = chat.createTextMessage({ to: peerID, conversationType: TencentCloudChat.TYPES.CONV_C2C, payload: { text: e } });
+        chat.sendMessage(msg).then(function () { renderMessage(msg); closePanels(); }).catch(function () { toast('发送失败'); });
+      }
+
+      /* ---------- 图片 / 视频全屏查看 ---------- */
+      function openViewer(type, src, poster) {
+        if (!src) return;
+        var img = $('vImg'), v = $('vVid');
+        if (type === 'video') {
+          img.style.display = 'none'; v.style.display = 'block';
+          v.src = src; if (poster) v.poster = poster;
+        } else {
+          v.style.display = 'none'; v.pause(); v.removeAttribute('src'); v.load();
+          img.style.display = 'block'; img.src = src;
+        }
+        $('viewer').classList.add('show');
+      }
+      function closeViewer() {
+        $('viewer').classList.remove('show');
+        var v = $('vVid'); v.pause(); v.removeAttribute('src'); v.load();
+        $('vImg').src = '';
+      }
+
+      /* ---------- 表情面板 ---------- */
+      function buildEmoji() {
+        var g = $('emojiGrid'); g.innerHTML = '';
+        EMOJIS.forEach(function (e) {
+          var s = document.createElement('span'); s.className = 'emoji'; s.textContent = e;
+          s.onclick = function () { sendEmoji(e); };
+          g.appendChild(s);
+        });
+      }
+      function openEmoji() {
+        $('emojiPanel').classList.add('show');
+        $('emojiPanel').style.position = 'relative';
+      }
+      function closePanels() {
+        $('emojiPanel').classList.remove('show');
+      }
+
+      /* ---------- 改名 ---------- */
+      function showRename() { $('renameInput').value = myNick; $('renameMask').classList.add('show'); }
+      function saveRename() {
+        var n = $('renameInput').value.trim();
+        if (!n) { toast('昵称不能为空'); return; }
+        setMyNick(n);
+        $('renameMask').classList.remove('show');
+        toast('昵称已修改');
+      }
+
+      /* ---------- 初始化 / 事件绑定 ---------- */
+      function bind() {
+        $('btnLogin').addEventListener('click', doLogin);
+        $('loginPwd').addEventListener('keydown', function (e) { if (e.key === 'Enter') doLogin(); });
+
+        $('btnSend').addEventListener('click', sendText);
+        $('msgInput').addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendText(); } });
+        $('msgInput').addEventListener('input', function () {
+          this.style.height = 'auto';
+          this.style.height = Math.min(this.scrollHeight, 110) + 'px';
+        });
+        $('btnPhoto').addEventListener('click', function () { closePanels(); $('inAlbum').click(); });
+        $('btnVideo').addEventListener('click', function () { closePanels(); $('inGallery').click(); });
+        $('inAlbum').addEventListener('change', function () { sendFile('image', this); });
+        $('inGallery').addEventListener('change', function () { sendFile('video', this); });
+
+        $('btnEmoji').addEventListener('click', function () {
+          $('emojiPanel').classList.toggle('show');
+        });
+        $('emojiClose').addEventListener('click', closePanels);
+
+        $('btnLogout').addEventListener('click', doLogout);
+        $('renameCancel').addEventListener('click', function () { $('renameMask').classList.remove('show'); });
+        $('renameOk').addEventListener('click', saveRename);
+        $('renameInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') saveRename(); });
+        $('renameMask').addEventListener('click', function (e) { if (e.target === this) this.classList.remove('show'); });
+
+        $('meAvatar').addEventListener('click', function () { $('inAvatar').click(); });
+        $('meNick').addEventListener('click', showRename);
+        $('inAvatar').addEventListener('change', function () { changeAvatar(this); });
+
+        $('vClose').addEventListener('click', closeViewer);
+        $('viewer').addEventListener('click', function (e) { if (e.target === this || e.target.id === 'vImg' || e.target.id === 'vVid') closeViewer(); });
+
+        buildEmoji();
+      }
+
+      document.title = '猪mer';
+      setFav(favGreen);
+      document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) { unreadCount = 0; updateNotif(); }
+      });
+
+      bind();
+      tryAutoLogin();
+    })();
+  </script>
+</body>
+</html>
